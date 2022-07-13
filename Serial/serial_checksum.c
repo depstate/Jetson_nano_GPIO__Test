@@ -73,7 +73,11 @@ void write_serial(unsigned char *buf, int len)
 int init_serial_port(void)
 {
   int serial_port = open("/dev/ttyUSB0", O_RDWR);
-
+  if(serial_port < 0)
+  {
+	  printf("Error %i from open: %s\n", errno, strerror(errno));
+      exit(1);
+  }
   // Create new termios struct, we call it 'tty' for convention
   struct termios tty;
   // Read in existing settings, and handle any error
@@ -117,7 +121,6 @@ int init_serial_port(void)
 
 void *readserial_thread(void *pt)
 {
-	printf("\nread_test\n");
     int num_bytes = -1;
     unsigned char insert_buf;
     while(1)
@@ -125,7 +128,7 @@ void *readserial_thread(void *pt)
 		
      	while( (num_bytes = read(uart_fd, &insert_buf, 1)   ) > 0 )	
        {
-            printf("No read %d\n", num_bytes);
+            printf("receive data : %x\n", insert_buf);
 			
 			//아두이노에 잘못된 데이터가 전송돼 wrong 메시지 받음
 			if(insert_buf == 'w')
@@ -148,8 +151,12 @@ void *readserial_thread(void *pt)
 						for(int i = 2; i < 7; i++)
 						{
 							check += protocal_receive[(cnt_rcv + i)%9];
-							checksum2.data = check;
 						}
+						checksum2.data = check;
+						checksum2.data &= 0xFF;
+						checksum2.data = ~checksum2.data + 1;
+						checksum2.data += check;
+						checksum2.data &= 0xFF;
 						check = 0;
 						
 						//체크썸 맞을 때 다음 데이터 송신
@@ -199,9 +206,13 @@ void send_serial_data(void)
     
     for(int i = 1; i < 6; i++)
     {
-		check += protocal_test[i];
-		checksum.data = check;
+		check += protocal_test[i];	
 	}
+	checksum.data = check;
+	checksum.data &= 0xFF;
+	checksum.data = ~checksum.data + 1;
+	checksum.data += check;
+	checksum.data &= 0xFF;
 	check = 0;
 	
     protocal_test[6] = checksum.bytedata[1];
@@ -209,13 +220,13 @@ void send_serial_data(void)
     protocal_test[8] = '*';
     //printf("protocal CRC16 %X \n", protocal_crc16);
 	
-	printf("data : %f\n", data.data);
-	printf("checksum : %d\n\n", checksum.data);
+//	printf("data : %f\n", data.data);
+	printf("checksum : %d %x %x \n\n", checksum.data, checksum.bytedata[0], checksum.bytedata[1]);
 	
-	printf("start : %c %c\n", protocal_test[0] ,protocal_test[1] );
-	printf("data : %2x %2x %2x %2x \n", protocal_test[2], protocal_test[3], protocal_test[4], protocal_test[5]);
-	printf("checksum : %2X %2X\n", protocal_test[6], protocal_test[7]);
-	printf("end : %c\n\n\n\n\n\n\n", protocal_test[8]);
+//	printf("start : %c %c\n", protocal_test[0] ,protocal_test[1] );
+//	printf("data : %2x %2x %2x %2x \n", protocal_test[2], protocal_test[3], protocal_test[4], protocal_test[5]);
+//	printf("checksum : %2X %2X\n", protocal_test[6], protocal_test[7]);
+//	printf("end : %c\n\n\n", protocal_test[8]);
 	
     write_serial(protocal_test, 9);
 }
@@ -240,11 +251,18 @@ int main(void)
   checksum.data = 0;
   data.data = 0.01;
 	
-  while(1)
-  {
-      send_serial_data();
-      sleep(1);
-  }	
+
+  send_serial_data();
+  sleep(1);
+  send_serial_data();
+  sleep(1);
+  send_serial_data();
+  sleep(1);
+  send_serial_data();
+  sleep(1);
+  send_serial_data();
+  sleep(1);
+
 
       
   close(uart_fd);

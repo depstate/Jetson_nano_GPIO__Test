@@ -18,6 +18,7 @@ union
 } m_float_test;
 
 
+int check = 0;
 
 void setup() {
   // put your setup code here, to run once:
@@ -55,65 +56,73 @@ void send_command(void)
     send_command_buff[4] = m_float_test.bytedata[1];
     send_command_buff[5] = m_float_test.bytedata[0];
   }
-  
-  for(i = 1; i < 6; i++)
+
+  for(int i = 1; i < 6; i++) 
   {
-    check_sum += send_command_buff[i];
+      check += send_command_buff[i];
   }
-  
-  checksum.data = check_sum;
+  checksum.data = check;
+  checksum.data = checksum.data&0xFF;
+  checksum.data = ~checksum.data + 1;
+  checksum.data = checksum.data + check;
+  checksum.data = checksum.data&0xFF;
+  check = 0;
   
   send_command_buff[6] = checksum.bytedata[1]; //checksum MSB
   send_command_buff[7] = checksum.bytedata[0]; //checksum LSB
   
   send_command_buff[8] = '*';
   
-  for(i = 0; i < NO_PACKET_LEN; i++)
-  {
+  for(int i = 0; i<9; i++)
     Serial.print(send_command_buff[i]);
-  }
 }
+
 
 void serialEvent()
 {
-  Serial.print("test1");
   if(Serial.available() > 0)
   {
       Serial.readBytes(buff, NO_PACKET_LEN);
-      Serial.print("test2");
-      int check = 0;
-        
+
+      
       if((buff[0]=='#') && (buff[8]=='*') && (buff[1]=='I'))
       {
         for(int i = 1; i < 6; i++) check += buff[i];
         checksum.data = check;
-        Serial.write("int");
         if(checksum.bytedata[0] == buff[7] && checksum.bytedata[1] == buff[6])
         {
           m_int_test.bytedata[1] = buff[2];
           m_int_test.bytedata[0] = buff[3];
-          Serial.println(m_int_test.data);
+          send_command();
         }
         else
-          Serial.println("wrong");
+          Serial.print("w");
       }
-      
+
       if((buff[0]=='#') && (buff[8]=='*') && (buff[1]=='F'))
       {
-        Serial.print("test3");
-        for(int i = 1; i < 6; i++) check += buff[i];
-          checksum.data = check;
-        
+        for(int i = 1; i < 6; i++) 
+        {
+          check += buff[i];
+        }
+        checksum.data = check;
+        checksum.data = checksum.data&0xFF;
+        checksum.data = ~checksum.data + 1;
+        checksum.data = checksum.data + check;
+        checksum.data = checksum.data&0xFF;
+        check = 0;
+               
         if(checksum.bytedata[0] == buff[7] && checksum.bytedata[1] == buff[6])
         {
           m_float_test.bytedata[3] = buff[2];
           m_float_test.bytedata[2] = buff[3];
           m_float_test.bytedata[1] = buff[4];
           m_float_test.bytedata[0] = buff[5];
-          Serial.print(m_float_test.data);
+          send_command();
         }
+        
         else
-          Serial.println("w");
+          Serial.print("w");
       }
       if(buff[8]=='*')
         cnt_rcv = 0;
